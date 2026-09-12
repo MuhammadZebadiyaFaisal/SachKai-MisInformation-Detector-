@@ -4,9 +4,15 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from cache import claim_id_from_hash, get_cached_verification, hash_claim, save_verification
+from cache import (
+    claim_id_from_hash,
+    get_cached_verification,
+    hash_claim,
+    list_recent_verifications,
+    save_verification,
+)
 from reasoning import reason_about_claim
-from schemas import AgentLog, Source, VerifyRequest, VerifyResponse
+from schemas import AgentLog, FeedItem, Source, VerifyRequest, VerifyResponse
 from search import search_claim, deduplicate_and_format
 
 load_dotenv()
@@ -138,6 +144,13 @@ def search_evidence(payload: VerifyRequest):
     raw_results, optimized_query, search_plan = search_claim(claim_text)
     sources = deduplicate_and_format(raw_results)
     return {"optimized_query": optimized_query, "sources": sources, "search_plan": search_plan}
+
+
+@app.get("/api/feed", response_model=list[FeedItem])
+def verification_feed(limit: int = 20):
+    safe_limit = max(1, min(limit, 50))
+    return list_recent_verifications(safe_limit)
+
 
 @app.get("/")
 def health_check():

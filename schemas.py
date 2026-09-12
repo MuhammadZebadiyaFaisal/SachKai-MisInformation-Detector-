@@ -45,3 +45,12 @@ class VerifyResponse(BaseModel):
     agent_logs: list[AgentLog]
     processing_time_seconds: float
     warnings: list[str] = []
+
+
+class FeedItem(BaseModel):
+    claim_id: str
+    claim_text: str
+    input_type: InputType
+    verdict: Verdict
+    trust_score: int = Field(ge=0, le=100)
+    created_at: str | None = None
