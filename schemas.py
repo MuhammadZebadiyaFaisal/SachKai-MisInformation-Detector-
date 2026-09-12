@@ -44,6 +44,7 @@ class VerifyResponse(BaseModel):
     sources: list[Source]
     agent_logs: list[AgentLog]
     processing_time_seconds: float
+    extracted_text: str | None = None
     warnings: list[str] = []
 
 

@@ -23,5 +23,6 @@ export interface FactCheckResponse {
   }[];
   agent_logs: AgentLog[];
   processing_time_seconds: number;
+  extracted_text?: string | null;
   warnings?: string[];
 }
