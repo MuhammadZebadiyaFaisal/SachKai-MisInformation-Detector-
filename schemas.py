@@ -1,0 +1,40 @@
+from typing import Literal
+
+from pydantic import BaseModel, Field
+
+
+InputType = Literal["text", "audio", "image"]
+Verdict = Literal["True", "False", "Misleading", "Unverified"]
+Credibility = Literal["High", "Medium", "Low"]
+
+
+class VerifyRequest(BaseModel):
+    input_type: InputType = "text"
+    content: str = Field(default="", description="Raw claim text or extracted media text")
+    media_url: str | None = None
+
+
+class Source(BaseModel):
+    title: str
+    url: str
+    credibility: Credibility = "Low"
+    snippet: str | None = None
+    published_date: str | None = None
+
+
+class Summary(BaseModel):
+    english: str
+    urdu: str
+
+
+class VerifyResponse(BaseModel):
+    claim_id: str
+    is_cached: bool
+    verdict: Verdict
+    trust_score: int = Field(ge=0, le=100)
+    summary: Summary
+    key_findings: list[str]
+    sources: list[Source]
+    processing_time_seconds: float
+    warnings: list[str] = []
+

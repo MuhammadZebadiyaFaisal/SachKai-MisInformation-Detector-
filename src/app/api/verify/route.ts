@@ -1,24 +1,28 @@
 import { NextResponse } from 'next/server';
-import { FactCheckResponse } from '@/types';
 
 export async function POST(request: Request) {
-const { claim } = await request.json();
+  const body = await request.json();
+  const content = body.content ?? body.claim ?? '';
+  const input_type = body.input_type ?? 'text';
+  const media_url = body.media_url ?? null;
+  const apiBaseUrl = process.env.FASTAPI_BASE_URL ?? 'http://127.0.0.1:8000';
 
-  // Mock response for immediate UI testing
-  const mockData: FactCheckResponse = {
-    claim: claim || "Sample claim",
-    verdict: "Misleading",
-    trustScore: 42,
-    summary: "The shared context alters original reported facts.",
-    sources: [
-      { title: "Official Geo News Report", url: "https://geonews.tv" },
-      { title: "Press Information Department", url: "https://pid.gov.pk" }
-    ],
-    agentLogs: [
-      { agentName: "Search Agent", status: "completed", message: "Found 4 source articles" },
-      { agentName: "Reasoning Agent", status: "completed", message: "Timestamp verified; contradiction detected" }
-    ]
-  };
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input_type, content, media_url }),
+    });
 
-  return NextResponse.json(mockData);
+    const data = await response.json();
+    return NextResponse.json(data, { status: response.status });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        detail: 'FastAPI verification backend is unavailable.',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      },
+      { status: 503 },
+    );
+  }
 }

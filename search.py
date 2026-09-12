@@ -4,7 +4,6 @@ from tavily import TavilyClient
 from query_transform import transform_query
 
 load_dotenv()
-tavily_client = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
 
 HIGH_CREDIBILITY = [
     "gov.pk", "pid.gov.pk", "pbs.gov.pk", "nadra.gov.pk", 
@@ -34,8 +33,13 @@ def is_blocked(url):
     return any(blocked in url for blocked in BLOCKED_DOMAINS)
 
 def search_claim(raw_claim):
+    tavily_key = os.getenv("TAVILY_API_KEY")
+    if not tavily_key:
+        raise RuntimeError("TAVILY_API_KEY is missing")
+
+    tavily_client = TavilyClient(api_key=tavily_key)
     optimized_query = transform_query(raw_claim)
-    
+
     response = tavily_client.search(
         query=optimized_query,
         search_depth="advanced",
@@ -44,7 +48,7 @@ def search_claim(raw_claim):
         exclude_domains=BLOCKED_DOMAINS
     )
     
-    if len(response['results']) < 3:
+    if len(response.get('results', [])) < 3:
         response = tavily_client.search(
             query=optimized_query,
             search_depth="advanced",
@@ -52,7 +56,7 @@ def search_claim(raw_claim):
             exclude_domains=BLOCKED_DOMAINS
         )
     
-    return response['results'], optimized_query
+    return response.get('results', []), optimized_query
 
 def deduplicate_and_format(results):
     seen_urls = set()

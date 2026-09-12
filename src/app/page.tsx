@@ -18,9 +18,12 @@ export default function Home() {
       const res = await fetch('/api/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ claim }),
+        body: JSON.stringify({ input_type: 'text', content: claim }),
       });
       const data: FactCheckResponse = await res.json();
+      if (!res.ok) {
+        throw new Error('Verification request failed');
+      }
       setResult(data);
     } catch (err) {
       console.error(err);
@@ -49,7 +52,6 @@ export default function Home() {
             </p>
           </div>
 
-          {/* Theme Dropdown */}
           <div className="relative inline-block text-left">
             <select
               value={theme}
@@ -58,9 +60,9 @@ export default function Home() {
               }
               className="appearance-none bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 font-semibold text-sm py-2 pl-4 pr-9 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
             >
-              <option value="default">Default (Light Mode)</option>
-              <option value="light">☀️ Light Mode</option>
-              <option value="dark">🌙 Dark Mode</option>
+              <option value="default">Default Light</option>
+              <option value="light">Light Mode</option>
+              <option value="dark">Dark Mode</option>
             </select>
             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
               <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20">
@@ -119,7 +121,7 @@ export default function Home() {
                     Trust Score
                   </span>
                   <div className="text-4xl font-black text-emerald-500">
-                    {result.trustScore}
+                    {result.trust_score}
                     <span className="text-lg text-slate-400">/100</span>
                   </div>
                 </div>
@@ -130,7 +132,13 @@ export default function Home() {
                   Executive Summary
                 </h3>
                 <p className="font-medium text-slate-700 dark:text-slate-300 leading-relaxed">
-                  {result.summary}
+                  {result.summary.english}
+                </p>
+                <p
+                  className="font-medium text-slate-700 dark:text-slate-300 leading-8 text-right mt-4"
+                  dir="rtl"
+                >
+                  {result.summary.urdu}
                 </p>
               </div>
 
@@ -140,22 +148,21 @@ export default function Home() {
                   Verified Sources
                 </h3>
                 <div className="flex flex-wrap gap-2">
-                  {result.sources.map((src, idx) => (
+                  {result.sources.map((src) => (
                     <a
-                      key={idx}
+                      key={src.url}
                       href={src.url}
                       target="_blank"
                       rel="noreferrer"
                       className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 border border-slate-200 dark:border-slate-700 transition"
                     >
-                      🔗 {src.title}
+                      {src.title} · {src.credibility}
                     </a>
                   ))}
                 </div>
               </div>
             </div>
 
-            {/* Live Agent Logs Sidebar (Takes 1 Column) */}
             <div
               className={`p-6 rounded-2xl border transition shadow-md space-y-4 ${
                 theme === 'dark'
@@ -164,26 +171,29 @@ export default function Home() {
               }`}
             >
               <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider border-b pb-3 border-slate-200 dark:border-slate-800">
-                Agent Execution Pipeline
+                Key Findings
               </h3>
-              <div className="space-y-4">
-                {result.agentLogs.map((log, idx) => (
-                  <div
-                    key={idx}
-                    className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 space-y-1"
+              <div className="space-y-3">
+                {result.key_findings.map((finding) => (
+                  <p
+                    key={finding}
+                    className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 text-sm text-slate-700 dark:text-slate-300"
                   >
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                        {log.agentName}
-                      </span>
-                      <span className="text-[10px] uppercase px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 font-bold">
-                        {log.status}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-600 dark:text-slate-400">
-                      {log.message}
-                    </p>
-                  </div>
+                    {finding}
+                  </p>
+                ))}
+                {result.is_cached && (
+                  <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                    Served from duplicate-claim cache.
+                  </p>
+                )}
+                {result.warnings?.map((warning) => (
+                  <p
+                    key={warning}
+                    className="text-xs font-semibold text-amber-600 dark:text-amber-300"
+                  >
+                    {warning}
+                  </p>
                 ))}
               </div>
             </div>
