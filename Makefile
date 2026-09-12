@@ -33,7 +33,7 @@ start:
 		echo "ngrok already running at https://$(NGROK_DOMAIN)"; \
 	else \
 		echo "Starting ngrok at https://$(NGROK_DOMAIN)"; \
-		nohup ngrok http --domain=$(NGROK_DOMAIN) $(FRONTEND_PORT) > "$(NGROK_LOG)" 2>&1 & echo $$! > "$(NGROK_PID)"; \
+		nohup ngrok http --url=$(NGROK_DOMAIN) $(FRONTEND_PORT) > "$(NGROK_LOG)" 2>&1 & echo $$! > "$(NGROK_PID)"; \
 	fi
 	@$(MAKE) status
 
@@ -84,4 +84,4 @@ frontend:
 	npm run dev -- --port $(FRONTEND_PORT)
 
 tunnel:
-	ngrok http --domain=$(NGROK_DOMAIN) $(FRONTEND_PORT)
+	ngrok http --url=$(NGROK_DOMAIN) $(FRONTEND_PORT)
