@@ -3,14 +3,17 @@ SHELL := /bin/bash
 BACKEND_HOST ?= 127.0.0.1
 BACKEND_PORT ?= 8000
 FRONTEND_PORT ?= 3000
+NGROK_DOMAIN ?= rigoberto-urceolate-ilda.ngrok-free.dev
 
 RUN_DIR := .run
 BACKEND_PID := $(RUN_DIR)/backend.pid
 FRONTEND_PID := $(RUN_DIR)/frontend.pid
+NGROK_PID := $(RUN_DIR)/ngrok.pid
 BACKEND_LOG := $(RUN_DIR)/backend.log
 FRONTEND_LOG := $(RUN_DIR)/frontend.log
+NGROK_LOG := $(RUN_DIR)/ngrok.log
 
-.PHONY: start stop status backend frontend
+.PHONY: start stop status backend frontend tunnel
 
 start:
 	@mkdir -p $(RUN_DIR)
@@ -25,6 +28,12 @@ start:
 	else \
 		echo "Starting frontend on http://localhost:$(FRONTEND_PORT)"; \
 		nohup npm run dev -- --port $(FRONTEND_PORT) > "$(FRONTEND_LOG)" 2>&1 & echo $$! > "$(FRONTEND_PID)"; \
+	fi
+	@if [ -f "$(NGROK_PID)" ] && kill -0 "$$(cat $(NGROK_PID))" 2>/dev/null; then \
+		echo "ngrok already running at https://$(NGROK_DOMAIN)"; \
+	else \
+		echo "Starting ngrok at https://$(NGROK_DOMAIN)"; \
+		nohup ngrok http --domain=$(NGROK_DOMAIN) $(FRONTEND_PORT) > "$(NGROK_LOG)" 2>&1 & echo $$! > "$(NGROK_PID)"; \
 	fi
 	@$(MAKE) status
 
@@ -41,7 +50,13 @@ stop:
 	else \
 		echo "Frontend is not running"; \
 	fi
-	@rm -f "$(BACKEND_PID)" "$(FRONTEND_PID)"
+	@if [ -f "$(NGROK_PID)" ] && kill -0 "$$(cat $(NGROK_PID))" 2>/dev/null; then \
+		echo "Stopping ngrok"; \
+		kill "$$(cat $(NGROK_PID))"; \
+	else \
+		echo "ngrok is not running"; \
+	fi
+	@rm -f "$(BACKEND_PID)" "$(FRONTEND_PID)" "$(NGROK_PID)"
 
 status:
 	@if [ -f "$(BACKEND_PID)" ] && kill -0 "$$(cat $(BACKEND_PID))" 2>/dev/null; then \
@@ -54,10 +69,19 @@ status:
 	else \
 		echo "Frontend: stopped"; \
 	fi
-	@echo "Logs: $(BACKEND_LOG), $(FRONTEND_LOG)"
+	@if [ -f "$(NGROK_PID)" ] && kill -0 "$$(cat $(NGROK_PID))" 2>/dev/null; then \
+		echo "ngrok: running at https://$(NGROK_DOMAIN) (pid $$(cat $(NGROK_PID)))"; \
+	else \
+		echo "ngrok: stopped"; \
+	fi
+	@echo "Public URL: https://$(NGROK_DOMAIN)"
+	@echo "Logs: $(BACKEND_LOG), $(FRONTEND_LOG), $(NGROK_LOG)"
 
 backend:
 	.venv/bin/uvicorn main:app --reload --host $(BACKEND_HOST) --port $(BACKEND_PORT)
 
 frontend:
 	npm run dev -- --port $(FRONTEND_PORT)
+
+tunnel:
+	ngrok http --domain=$(NGROK_DOMAIN) $(FRONTEND_PORT)
