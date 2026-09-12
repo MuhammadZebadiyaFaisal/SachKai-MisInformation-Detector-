@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 InputType = Literal["text", "audio", "image"]
 Verdict = Literal["True", "False", "Misleading", "Unverified"]
 Credibility = Literal["High", "Medium", "Low"]
+AgentStatus = Literal["pending", "active", "completed", "failed"]
 
 
 class VerifyRequest(BaseModel):
@@ -27,6 +28,12 @@ class Summary(BaseModel):
     urdu: str
 
 
+class AgentLog(BaseModel):
+    agent_name: str
+    status: AgentStatus
+    message: str
+
+
 class VerifyResponse(BaseModel):
     claim_id: str
     is_cached: bool
@@ -35,6 +42,6 @@ class VerifyResponse(BaseModel):
     summary: Summary
     key_findings: list[str]
     sources: list[Source]
+    agent_logs: list[AgentLog]
     processing_time_seconds: float
     warnings: list[str] = []
-

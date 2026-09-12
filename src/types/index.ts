@@ -1,5 +1,5 @@
 export interface AgentLog {
-  agentName: string;
+  agent_name: string;
   status: 'pending' | 'active' | 'completed' | 'failed';
   message: string;
 }
@@ -21,6 +21,7 @@ export interface FactCheckResponse {
     snippet?: string | null;
     published_date?: string | null;
   }[];
+  agent_logs: AgentLog[];
   processing_time_seconds: number;
   warnings?: string[];
 }

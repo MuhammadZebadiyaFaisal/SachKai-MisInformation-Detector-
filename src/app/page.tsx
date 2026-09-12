@@ -118,7 +118,7 @@ export default function Home() {
                 </div>
                 <div className="text-right">
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                    Trust Score
+                    Verdict Confidence
                   </span>
                   <div className="text-4xl font-black text-emerald-500">
                     {result.trust_score}
@@ -141,6 +141,24 @@ export default function Home() {
                   {result.summary.urdu}
                 </p>
               </div>
+
+              {result.key_findings.length > 0 && (
+                <div className="pt-2">
+                  <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">
+                    Key Findings
+                  </h3>
+                  <div className="space-y-2">
+                    {result.key_findings.map((finding) => (
+                      <p
+                        key={finding}
+                        className="text-sm font-medium text-slate-700 dark:text-slate-300"
+                      >
+                        {finding}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Sources Section */}
               <div className="pt-2">
@@ -171,16 +189,26 @@ export default function Home() {
               }`}
             >
               <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider border-b pb-3 border-slate-200 dark:border-slate-800">
-                Key Findings
+                Agent Execution Pipeline
               </h3>
               <div className="space-y-3">
-                {result.key_findings.map((finding) => (
-                  <p
-                    key={finding}
+                {result.agent_logs.map((log) => (
+                  <div
+                    key={`${log.agent_name}-${log.message}`}
                     className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 text-sm text-slate-700 dark:text-slate-300"
                   >
-                    {finding}
-                  </p>
+                    <div className="flex justify-between items-center gap-3">
+                      <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                        {log.agent_name}
+                      </span>
+                      <span className="text-[10px] uppercase px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 font-bold">
+                        {log.status}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
+                      {log.message}
+                    </p>
+                  </div>
                 ))}
                 {result.is_cached && (
                   <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
