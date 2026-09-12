@@ -3,9 +3,13 @@ from dotenv import load_dotenv
 from groq import Groq
 
 load_dotenv()
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 def transform_query(raw_claim):
+    groq_key = os.getenv("GROQ_API_KEY")
+    if not groq_key:
+        return " ".join(raw_claim.split())[:180]
+
+    client = Groq(api_key=groq_key)
     prompt = f"""You are a search query optimizer for a Pakistani fact-checking system.
 Convert the following claim (which may be in Urdu, Roman Urdu, or English) into an 
 optimal English search query for finding fact-check information.
@@ -29,8 +33,6 @@ Search query:"""
         reasoning_effort="low"
     )
     return response.choices[0].message.content.strip()
-
-print("SCRIPT STARTED")
 
 if __name__ == "__main__":
     test_claim = "Pakistan petrol price increase"
