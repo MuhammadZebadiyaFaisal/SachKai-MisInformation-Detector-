@@ -9,6 +9,7 @@ export default function Home() {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<FactCheckResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [theme, setTheme] = useState<'default' | 'light' | 'dark'>('default');
 
   const handleVerify = async (e: React.FormEvent) => {
@@ -16,6 +17,7 @@ export default function Home() {
     if (inputType === 'text' && !claim) return;
     if (inputType !== 'text' && !file) return;
     setLoading(true);
+    setError(null);
 
     try {
       const res =
@@ -29,13 +31,17 @@ export default function Home() {
               method: 'POST',
               body: buildFilePayload(inputType, file),
             });
-      const data: FactCheckResponse = await res.json();
+      const data = await res.json();
       if (!res.ok) {
-        throw new Error('Verification request failed');
+        setResult(null);
+        setError(getErrorMessage(data));
+        return;
       }
-      setResult(data);
+      setResult(data as FactCheckResponse);
     } catch (err) {
       console.error(err);
+      setResult(null);
+      setError('Verification backend is unavailable. Check backend logs and try again.');
     } finally {
       setLoading(false);
     }
@@ -93,6 +99,8 @@ export default function Home() {
                 type="button"
                 onClick={() => {
                   setInputType(type);
+                  setFile(null);
+                  setError(null);
                   setResult(null);
                 }}
                 className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wider border transition ${
@@ -119,24 +127,43 @@ export default function Home() {
               }`}
             />
           ) : (
-            <input
-              type="file"
-              accept={inputType === 'audio' ? 'audio/*' : 'image/*'}
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              className={`w-full p-4 rounded-xl border font-medium transition focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+            <div
+              className={`flex flex-col sm:flex-row sm:items-center gap-3 w-full p-4 rounded-xl border font-medium transition ${
                 theme === 'dark'
-                  ? 'bg-slate-900 border-slate-800 text-slate-100'
+                  ? 'bg-slate-900 border-slate-800'
                   : 'bg-white border-slate-200 text-slate-900 shadow-sm'
               }`}
-            />
+            >
+              <input
+                id="media-upload"
+                type="file"
+                accept={inputType === 'audio' ? 'audio/*' : 'image/*'}
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                className="sr-only"
+              />
+              <label
+                htmlFor="media-upload"
+                className="inline-flex w-fit cursor-pointer items-center justify-center rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-500"
+              >
+                Add {inputType === 'audio' ? 'Audio' : 'Image'} File
+              </label>
+              <span className="text-sm text-slate-500 dark:text-slate-400">
+                {file ? file.name : 'No file selected'}
+              </span>
+            </div>
           )}
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || (inputType === 'text' ? !claim : !file)}
             className="px-8 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg hover:shadow-emerald-500/20 transition disabled:opacity-50"
           >
             {loading ? 'Executing Agent Pipeline...' : 'Verify Claim'}
           </button>
+          {error && (
+            <p className="text-sm font-semibold text-amber-600 dark:text-amber-300">
+              {error}
+            </p>
+          )}
         </form>
 
         {/* Results Dashboard Grid */}
@@ -293,4 +320,17 @@ function buildFilePayload(inputType: 'audio' | 'image', file: File | null) {
     formData.append('file', file);
   }
   return formData;
+}
+
+function getErrorMessage(data: unknown) {
+  if (
+    data &&
+    typeof data === 'object' &&
+    'detail' in data &&
+    typeof data.detail === 'string'
+  ) {
+    return data.detail;
+  }
+
+  return 'Verification request failed. Please try a different file or claim.';
 }
