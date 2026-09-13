@@ -67,7 +67,7 @@ def transcribe_audio_file(file: UploadFile) -> str:
 def extract_text_from_image_file(file: UploadFile) -> str:
     path = _save_upload_to_temp(file)
     try:
-        # 1. Primary Cloud Execution: Groq Vision API (Bypasses local Tesseract binary requirements on Vercel)
+        # 1. Primary Cloud Execution: Groq Vision API
         groq_key = os.getenv("GROQ_API_KEY")
         if groq_key:
             try:
@@ -80,15 +80,16 @@ def extract_text_from_image_file(file: UploadFile) -> str:
                 suffix = path.suffix.lower().lstrip(".")
                 mime_type = f"image/{'jpeg' if suffix in ['jpg', 'jpeg'] else suffix or 'png'}"
 
+                # Using reliable 90b vision model endpoint
                 response = client.chat.completions.create(
-                    model=os.getenv("VISION_GROQ_MODEL", "llama-3.2-11b-vision-preview"),
+                    model="llama-3.2-90b-vision-preview",
                     messages=[
                         {
                             "role": "user",
                             "content": [
                                 {
                                     "type": "text",
-                                    "text": "Extract and return ONLY the readable text present in this image. Do not include introductory notes or extra conversational text.",
+                                    "text": "Extract and return ONLY the readable text present in this image. Do not include introductory notes or commentary.",
                                 },
                                 {
                                     "type": "image_url",
@@ -105,42 +106,32 @@ def extract_text_from_image_file(file: UploadFile) -> str:
                 if extracted_text:
                     return extracted_text
             except Exception as cloud_exc:
-                print(f"Groq Cloud OCR failed, attempting local Tesseract fallback: {cloud_exc}")
+                print(f"Groq Cloud OCR error: {cloud_exc}")
+                # If on Vercel/Cloud, return a clean error instead of trying Tesseract system binary
+                if os.getenv("VERCEL"):
+                    raise RuntimeError(f"Cloud Image OCR processing error: {cloud_exc}")
 
-        # 2. Local Fallback Execution: pytesseract
+        # 2. Local Fallback Execution (Only runs locally if Tesseract is installed)
         try:
             from PIL import Image
             import pytesseract
-        except ImportError as exc:
-            raise RuntimeError(
-                "pillow and pytesseract are required for local image OCR. Run: .venv/bin/python -m pip install pillow pytesseract"
-            ) from exc
 
-        tesseract_cmd = os.getenv("TESSERACT_CMD")
-        if tesseract_cmd:
-            pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
+            tesseract_cmd = os.getenv("TESSERACT_CMD")
+            if tesseract_cmd:
+                pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
 
-        try:
-            pytesseract.get_tesseract_version()
-        except Exception as exc:
-            raise RuntimeError(
-                "Tesseract OCR is not installed or not on PATH. On macOS run: brew install tesseract"
-            ) from exc
-
-        try:
             image = Image.open(path)
             text = pytesseract.image_to_string(image, lang=os.getenv("TESSERACT_LANG", "eng"))
-        except Exception as exc:
-            raise RuntimeError(f"Local image OCR failed: {exc}") from exc
+            text = " ".join(text.split())
+            if text:
+                return text
+        except Exception as local_exc:
+            raise RuntimeError("Could not extract readable text from the image using Vision API.") from local_exc
 
-        text = " ".join(text.split())
-        if not text:
-            raise RuntimeError("No readable text could be extracted from the image.")
-        return text
+        raise RuntimeError("No readable text could be extracted from the image.")
 
     finally:
         path.unlink(missing_ok=True)
-
 
 def _save_upload_to_temp(file: UploadFile) -> Path:
     suffix = Path(file.filename or "").suffix or ".upload"
