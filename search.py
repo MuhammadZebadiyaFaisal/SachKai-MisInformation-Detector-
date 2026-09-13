@@ -20,6 +20,19 @@ BLOCKED_DOMAINS = [
     "youtube.com", "wikipedia.org"
 ]
 
+
+def _run_search(tavily_client, query, max_results, include_domains=None, search_depth="basic"):
+    kwargs = {
+        "query": query,
+        "search_depth": search_depth,
+        "max_results": max_results,
+        "exclude_domains": BLOCKED_DOMAINS,
+    }
+    if include_domains:
+        kwargs["include_domains"] = include_domains
+    return tavily_client.search(**kwargs).get("results", [])
+
+
 def get_credibility(url):
     for domain in HIGH_CREDIBILITY:
         if domain in url:
@@ -39,24 +52,41 @@ def search_claim(raw_claim):
 
     tavily_client = TavilyClient(api_key=tavily_key)
     optimized_query = transform_query(raw_claim)
+    search_plan = []
+    combined_results = []
 
-    response = tavily_client.search(
-        query=optimized_query,
-        search_depth="advanced",
-        max_results=10,
-        include_domains=HIGH_CREDIBILITY + MEDIUM_CREDIBILITY,
-        exclude_domains=BLOCKED_DOMAINS
+    official_results = _run_search(
+        tavily_client,
+        optimized_query,
+        max_results=6,
+        include_domains=HIGH_CREDIBILITY,
+        search_depth="basic",
     )
-    
-    if len(response.get('results', [])) < 3:
-        response = tavily_client.search(
-            query=optimized_query,
-            search_depth="advanced",
-            max_results=10,
-            exclude_domains=BLOCKED_DOMAINS
+    combined_results.extend(official_results)
+    search_plan.append(f"Official-source pass found {len(official_results)} results")
+
+    if len(deduplicate_and_format(combined_results)) < 3:
+        news_results = _run_search(
+            tavily_client,
+            optimized_query,
+            max_results=8,
+            include_domains=MEDIUM_CREDIBILITY,
+            search_depth="basic",
         )
-    
-    return response.get('results', []), optimized_query
+        combined_results.extend(news_results)
+        search_plan.append(f"Trusted-news pass found {len(news_results)} results")
+
+    if len(deduplicate_and_format(combined_results)) < 3:
+        wide_results = _run_search(
+            tavily_client,
+            optimized_query,
+            max_results=10,
+            search_depth=os.getenv("TAVILY_FALLBACK_SEARCH_DEPTH", "advanced"),
+        )
+        combined_results.extend(wide_results)
+        search_plan.append(f"Wide-web fallback found {len(wide_results)} results")
+
+    return combined_results, optimized_query, search_plan
 
 def deduplicate_and_format(results):
     seen_urls = set()
@@ -84,11 +114,12 @@ def deduplicate_and_format(results):
     return formatted
 
 def get_verified_sources(claim_text):
-    raw_results, optimized_query = search_claim(claim_text)
+    raw_results, optimized_query, search_plan = search_claim(claim_text)
     sources = deduplicate_and_format(raw_results)
     return {
         "optimized_query": optimized_query,
-        "sources": sources
+        "sources": sources,
+        "search_plan": search_plan,
     }
 
 if __name__ == "__main__":

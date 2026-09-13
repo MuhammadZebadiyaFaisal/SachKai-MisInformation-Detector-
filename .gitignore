@@ -23,6 +23,9 @@
 # misc
 .DS_Store
 *.pem
+*.aiff
+*.mp3
+*.wav
 __pycache__/
 *.py[cod]
 .venv/
@@ -32,6 +35,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+.run/
+temp/
 
 # env files (can opt-in for committing if needed)
 .env*

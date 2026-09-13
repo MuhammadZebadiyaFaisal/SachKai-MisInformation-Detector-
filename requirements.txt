@@ -3,3 +3,7 @@ uvicorn[standard]
 python-dotenv
 groq
 tavily-python
+python-multipart
+faster-whisper
+pillow
+pytesseract

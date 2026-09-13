@@ -5,28 +5,43 @@ import { FactCheckResponse } from '@/types';
 
 export default function Home() {
   const [claim, setClaim] = useState('');
+  const [inputType, setInputType] = useState<'text' | 'audio' | 'image'>('text');
+  const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<FactCheckResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [theme, setTheme] = useState<'default' | 'light' | 'dark'>('default');
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!claim) return;
+    if (inputType === 'text' && !claim) return;
+    if (inputType !== 'text' && !file) return;
     setLoading(true);
+    setError(null);
 
     try {
-      const res = await fetch('/api/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ input_type: 'text', content: claim }),
-      });
-      const data: FactCheckResponse = await res.json();
+      const res =
+        inputType === 'text'
+          ? await fetch('/api/verify', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ input_type: 'text', content: claim }),
+            })
+          : await fetch('/api/verify-file', {
+              method: 'POST',
+              body: buildFilePayload(inputType, file),
+            });
+      const data = await res.json();
       if (!res.ok) {
-        throw new Error('Verification request failed');
+        setResult(null);
+        setError(getErrorMessage(data));
+        return;
       }
-      setResult(data);
+      setResult(data as FactCheckResponse);
     } catch (err) {
       console.error(err);
+      setResult(null);
+      setError('Verification backend is unavailable. Check backend logs and try again.');
     } finally {
       setLoading(false);
     }
@@ -77,23 +92,78 @@ export default function Home() {
           <label className="block text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
             Enter Claim or Viral News Text
           </label>
-          <textarea
-            value={claim}
-            onChange={(e) => setClaim(e.target.value)}
-            placeholder="Paste news headline, statement, or social media rumor to verify..."
-            className={`w-full p-4 rounded-xl border font-medium transition focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[120px] ${
-              theme === 'dark'
-                ? 'bg-slate-900 border-slate-800 text-slate-100 placeholder-slate-500'
-                : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 shadow-sm'
-            }`}
-          />
+          <div className="flex flex-wrap gap-2">
+            {(['text', 'audio', 'image'] as const).map((type) => (
+              <button
+                key={type}
+                type="button"
+                onClick={() => {
+                  setInputType(type);
+                  setFile(null);
+                  setError(null);
+                  setResult(null);
+                }}
+                className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wider border transition ${
+                  inputType === type
+                    ? 'bg-emerald-600 border-emerald-600 text-white'
+                    : theme === 'dark'
+                      ? 'bg-slate-900 border-slate-800 text-slate-300'
+                      : 'bg-white border-slate-200 text-slate-600'
+                }`}
+              >
+                {type}
+              </button>
+            ))}
+          </div>
+          {inputType === 'text' ? (
+            <textarea
+              value={claim}
+              onChange={(e) => setClaim(e.target.value)}
+              placeholder="Paste news headline, statement, or social media rumor to verify..."
+              className={`w-full p-4 rounded-xl border font-medium transition focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[120px] ${
+                theme === 'dark'
+                  ? 'bg-slate-900 border-slate-800 text-slate-100 placeholder-slate-500'
+                  : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 shadow-sm'
+              }`}
+            />
+          ) : (
+            <div
+              className={`flex flex-col sm:flex-row sm:items-center gap-3 w-full p-4 rounded-xl border font-medium transition ${
+                theme === 'dark'
+                  ? 'bg-slate-900 border-slate-800'
+                  : 'bg-white border-slate-200 text-slate-900 shadow-sm'
+              }`}
+            >
+              <input
+                id="media-upload"
+                type="file"
+                accept={inputType === 'audio' ? 'audio/*' : 'image/*'}
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                className="sr-only"
+              />
+              <label
+                htmlFor="media-upload"
+                className="inline-flex w-fit cursor-pointer items-center justify-center rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-500"
+              >
+                Add {inputType === 'audio' ? 'Audio' : 'Image'} File
+              </label>
+              <span className="text-sm text-slate-500 dark:text-slate-400">
+                {file ? file.name : 'No file selected'}
+              </span>
+            </div>
+          )}
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || (inputType === 'text' ? !claim : !file)}
             className="px-8 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg hover:shadow-emerald-500/20 transition disabled:opacity-50"
           >
             {loading ? 'Executing Agent Pipeline...' : 'Verify Claim'}
           </button>
+          {error && (
+            <p className="text-sm font-semibold text-amber-600 dark:text-amber-300">
+              {error}
+            </p>
+          )}
         </form>
 
         {/* Results Dashboard Grid */}
@@ -118,7 +188,7 @@ export default function Home() {
                 </div>
                 <div className="text-right">
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                    Trust Score
+                    Verdict Confidence
                   </span>
                   <div className="text-4xl font-black text-emerald-500">
                     {result.trust_score}
@@ -141,6 +211,35 @@ export default function Home() {
                   {result.summary.urdu}
                 </p>
               </div>
+
+              {result.extracted_text && (
+                <div className="pt-2">
+                  <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">
+                    Extracted Text
+                  </h3>
+                  <p className="font-medium text-slate-700 dark:text-slate-300 leading-relaxed">
+                    {result.extracted_text}
+                  </p>
+                </div>
+              )}
+
+              {result.key_findings.length > 0 && (
+                <div className="pt-2">
+                  <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">
+                    Key Findings
+                  </h3>
+                  <div className="space-y-2">
+                    {result.key_findings.map((finding) => (
+                      <p
+                        key={finding}
+                        className="text-sm font-medium text-slate-700 dark:text-slate-300"
+                      >
+                        {finding}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Sources Section */}
               <div className="pt-2">
@@ -171,16 +270,26 @@ export default function Home() {
               }`}
             >
               <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider border-b pb-3 border-slate-200 dark:border-slate-800">
-                Key Findings
+                Agent Execution Pipeline
               </h3>
               <div className="space-y-3">
-                {result.key_findings.map((finding) => (
-                  <p
-                    key={finding}
+                {result.agent_logs.map((log) => (
+                  <div
+                    key={`${log.agent_name}-${log.message}`}
                     className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 text-sm text-slate-700 dark:text-slate-300"
                   >
-                    {finding}
-                  </p>
+                    <div className="flex justify-between items-center gap-3">
+                      <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                        {log.agent_name}
+                      </span>
+                      <span className="text-[10px] uppercase px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 font-bold">
+                        {log.status}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
+                      {log.message}
+                    </p>
+                  </div>
                 ))}
                 {result.is_cached && (
                   <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
@@ -202,4 +311,26 @@ export default function Home() {
       </div>
     </main>
   );
+}
+
+function buildFilePayload(inputType: 'audio' | 'image', file: File | null) {
+  const formData = new FormData();
+  formData.append('input_type', inputType);
+  if (file) {
+    formData.append('file', file);
+  }
+  return formData;
+}
+
+function getErrorMessage(data: unknown) {
+  if (
+    data &&
+    typeof data === 'object' &&
+    'detail' in data &&
+    typeof data.detail === 'string'
+  ) {
+    return data.detail;
+  }
+
+  return 'Verification request failed. Please try a different file or claim.';
 }
