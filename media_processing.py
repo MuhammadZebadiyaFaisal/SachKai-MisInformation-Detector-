@@ -82,7 +82,7 @@ def extract_text_from_image_file(file: UploadFile) -> str:
 
                 # Using reliable 90b vision model endpoint
                 response = client.chat.completions.create(
-                    model="llama-3.2-90b-vision-preview",
+                    model="qwen/qwen3.6-27b",
                     messages=[
                         {
                             "role": "user",
