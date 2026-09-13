@@ -1,0 +1,15 @@
+.git
+.next
+.run
+.venv
+__pycache__
+node_modules
+temp
+.env
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+*.aiff
+*.mp3
+*.wav

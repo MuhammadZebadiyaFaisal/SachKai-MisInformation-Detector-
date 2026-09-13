@@ -1,36 +1,85 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SachKai
 
-## Getting Started
+Autonomous multi-agent misinformation verification for text, image, and audio claims.
 
-First, run the development server:
+## Docker Setup
+
+Create a local `.env` file:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Fill these values in `.env`:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+GROQ_API_KEY=your_groq_key
+TAVILY_API_KEY=your_tavily_key
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Then start the full app:
 
-## Learn More
+```bash
+docker compose up --build
+```
 
-To learn more about Next.js, take a look at the following resources:
+Or use Make:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+make start
+make status
+make stop
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Open:
 
-## Deploy on Vercel
+```txt
+http://localhost:3000
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Backend API:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```txt
+http://localhost:8000
+```
+
+## What Docker Runs
+
+- `frontend`: Next.js production server on port `3000`
+- `backend`: FastAPI server on port `8000`
+- Tesseract OCR is installed inside the backend image for image uploads
+- `faster-whisper` runs locally inside the backend container for audio uploads
+- Hugging Face model cache is persisted in a Docker volume named `whisper-cache`
+
+## Useful Commands
+
+```bash
+docker compose ps
+docker compose logs -f
+docker compose down
+docker compose build
+```
+
+## Supabase
+
+Run the SQL in `supabase_schema.sql` inside the Supabase SQL Editor before testing persistent feed/cache behavior.
+
+## Local Development Without Docker
+
+Backend:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn main:app --reload --host 127.0.0.1 --port 8000
+```
+
+Frontend:
+
+```bash
+npm install
+npm run dev -- --port 3000
+```
