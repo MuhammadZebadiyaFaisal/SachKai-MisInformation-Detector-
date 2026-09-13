@@ -1,6 +1,9 @@
 SHELL := /bin/bash
 
-COMPOSE ?= docker compose
+export PATH := /Applications/Docker.app/Contents/Resources/bin:$(PATH)
+
+DOCKER ?= $(shell command -v docker 2>/dev/null || printf '%s' '/Applications/Docker.app/Contents/Resources/bin/docker')
+COMPOSE ?= $(DOCKER) compose
 
 .PHONY: start stop status logs build backend frontend
 
